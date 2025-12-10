@@ -148,7 +148,7 @@ with gr.Blocks() as demo:
     gr.Markdown(f"Input Shape: {SEQUENCE_LENGTH} frames x {INPUT_SIZE} keypoints")
 
     with gr.Row():
-        input_cam = gr.Image(sources=["webcam"], streaming=True, mirror_webcam=False)
+        input_cam = gr.Image(sources=["webcam"], streaming=True, mirror_webcam=True)
         output_cam = gr.Image()
     
     state = gr.State([])
@@ -160,8 +160,9 @@ with gr.Blocks() as demo:
         fn=predict_stream, 
         inputs=[input_cam, state], 
         outputs=[output_cam, state],
-        stream_every=0.05
+        stream_every=0.1
     )
+
 
 if __name__ == "__main__":
     demo.launch()
