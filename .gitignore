@@ -6,7 +6,10 @@
 data/
 
 # PyTorch model
-model/
+model/*
+!model/trained_model.pt
+!model/X_*.npy
+!model/y_*.npy
 
 # NumPy NPY
 npy/
