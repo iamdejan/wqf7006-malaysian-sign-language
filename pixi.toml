@@ -6,9 +6,9 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-main = "python3 main.py"
-train = "python3 train.py"
-lab = "jupyter lab --no-browser"
+preprocess = "python3 01_preprocess.py"
+train = "python3 02_train.py"
+server = "python3 03_run_server.py"
 
 [system-requirements]
 cuda = "12.0"

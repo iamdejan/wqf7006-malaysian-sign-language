@@ -14,4 +14,4 @@ Install `pixi` from [Homebrew](https://formulae.brew.sh/formula/pixi).
 
 ## Run Website
 
-`pixi run main`
+`pixi run server`
