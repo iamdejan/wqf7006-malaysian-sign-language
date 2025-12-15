@@ -7,8 +7,9 @@ version = "0.1.0"
 
 [tasks]
 preprocess = "python3 01_preprocess.py"
-train = "python3 02_train.py"
-server = "python3 03_run_server.py"
+generate_npy = "python3 02_generate_npy.py"
+train = "python3 03_train.py"
+server = "python3 server.py"
 
 [system-requirements]
 cuda = "12.0"
@@ -25,6 +26,8 @@ jupyterlab = ">=4.5.0,<5"
 pixi-kernel = ">=0.7.1,<0.8"
 opencv = ">=4.12.0,<5"
 gradio = ">=5.49.1,<6"
+keras = ">=3.12.0,<4"
+scikit-learn = ">=1.8.0,<2"
 
 [pypi-dependencies]
 mediapipe = ">=0.10.21, <0.11"
