@@ -52,7 +52,7 @@ def predict_stream(image, history_buffer):
     mp.solutions.drawing_utils.draw_landmarks(image, results.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS)
     mp.solutions.drawing_utils.draw_landmarks(image, results.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS)
     mp.solutions.drawing_utils.draw_landmarks(image, results.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS)
-    
+
     prediction_text = "Waiting for hands..."
 
     # 4. Filter Logic (Optional but recommended based on your training)
@@ -60,13 +60,13 @@ def predict_stream(image, history_buffer):
     # Your training code: `if results.left_hand_landmarks or results.right_hand_landmarks:`
     # We will replicate that logic:
     if results.left_hand_landmarks or results.right_hand_landmarks:
-        
+
         # 5. Extract Keypoints (Your Custom Function)
         keypoints = utils.extract_keypoints(results)
-        
+
         # 6. Add to History Buffer
         history_buffer.append(keypoints)
-        
+
         # Maintain Sliding Window Size
         if len(history_buffer) > SEQUENCE_LENGTH:
             history_buffer = history_buffer[-SEQUENCE_LENGTH:]
@@ -75,11 +75,11 @@ def predict_stream(image, history_buffer):
         if len(history_buffer) == SEQUENCE_LENGTH:
             # Prepare tensor: (1, 30, 258)
             input_seq = torch.tensor([history_buffer], dtype=torch.float32)
-            
+
             with torch.no_grad():
                 res = model(input_seq)
                 idx = torch.argmax(res).item()
-                
+
                 # Safe Label Access
                 if idx < NUM_CLASSES:
                     prediction_text = labels[idx]
@@ -102,7 +102,7 @@ with gr.Blocks() as demo:
     with gr.Row():
         input_cam = gr.Image(sources=["webcam"], streaming=True, mirror_webcam=True)
         output_cam = gr.Image()
-    
+
     state = gr.State([])
 
     # Stream event: 

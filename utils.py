@@ -70,7 +70,7 @@ class CustomLSTM(nn.Module):
             nn.Linear(64, 32, dtype=torch.float64),
             nn.BatchNorm1d(32, dtype=torch.float64),
             nn.ReLU(),
-            nn.Dropout(DROPOUT-0.1),
+            nn.Dropout(DROPOUT-0.1), # smaller dropout 
 
             # Layer 5
             nn.Linear(32, 32, dtype=torch.float64),
