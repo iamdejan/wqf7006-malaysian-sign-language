@@ -10,6 +10,7 @@ model/*
 !model/trained_model.pt
 !model/X_*.npy
 !model/y_*.npy
+!model/loss_history.npy
 
 # NumPy NPY
 npy/
