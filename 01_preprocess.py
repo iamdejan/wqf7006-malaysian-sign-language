@@ -4,35 +4,12 @@ import numpy as np
 import mediapipe as mp
 from concurrent.futures import ProcessPoolExecutor
 
+import utils
+
 # silent mediapipe output
 os.environ['GLOG_minloglevel'] = '2'  # '2' means suppress INFO and WARNING
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['GOOGLE_LOG_MIN_SEVERITY'] = '2' # This can also be used
-
-
-def mediapipe_detection(image,model):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Color conversion from BGR to RGB
-    image.flags.writeable = False                   # Image is no longer writeable
-    result = model.process(image)                   # Make prediction
-    return result
-
-
-def draw_landmarks(image, results):
-    mp_holistic = mp.solutions.holistic # Holistic model
-    mp_drawing = mp.solutions.drawing_utils # Drawing utilities
-
-    mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)  # Draw pose connections
-    mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS) # Draw left connections
-    mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)    # Draw right connections
-
-
-def extract_keypoints(results):
-    pose = np.array([[res.x, res.y, res.z, res.visibility] for res in results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33*4)
-    lh = np.array([[res.x, res.y, res.z] for res in results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21*3)
-    rh = np.array([[res.x, res.y, res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
-
-    return np.concatenate([pose, lh, rh])
-
 
 # --- Setup Paths ---
 train_dataset_path = r'./data/train_dataset'
@@ -77,12 +54,12 @@ def process_single_video(task_data):
 
             # 1. Detection (KEEP THIS)
             # Assuming mediapipe_detection is defined in your global scope or imported
-            results = mediapipe_detection(frame, holistic)
+            results = utils.mediapipe_detection(frame, holistic)
 
             # 2. Save Data
             if results.left_hand_landmarks or results.right_hand_landmarks:
                 # assuming extract_keypoints is defined
-                keypoints = extract_keypoints(results)
+                keypoints = utils.extract_keypoints(results)
 
                 npy_path = os.path.join(target_folder, str(count + 1))
                 np.save(npy_path, keypoints)

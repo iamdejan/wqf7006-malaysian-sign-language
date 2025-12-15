@@ -3,9 +3,9 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
-train_dataset_path = r'./data/train_dataset'
-gestures = sorted(os.listdir(train_dataset_path)) if os.path.exists(train_dataset_path) else []
-model_folder_path = r"./model"
+import utils
+
+gestures = sorted(os.listdir(utils.TRAIN_DATASET_PATH)) if os.path.exists(utils.TRAIN_DATASET_PATH) else []
 
 
 # Helper function to process ONE gesture (to be run in parallel)
@@ -98,7 +98,7 @@ def load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path
 
 def main():
     label_map = {label: num for num, label in enumerate(gestures)}
-    load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path)
+    load_and_pad_data(gestures, utils.TRAIN_DATASET_PATH, label_map, utils.MODEL_FOLDER_PATH)
 
 
 # --- usage ---

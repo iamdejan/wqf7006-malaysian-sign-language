@@ -1,76 +1,31 @@
+import os
 import gradio as gr
 import cv2
-import mediapipe as mp
 import torch
-import torch.nn as nn
-import numpy as np
+import mediapipe as mp
 
-LABELS = ["ribut", "nasi_lemak", "pandai", "panas", "baik", "bila", "tandas", "apa", "beli_2", "hari", "anak_lelaki", "panas_2", "beli", "hi", "marah", "boleh", "assalamualaikum", "apa_khabar", "tidur", "masalah", "abang", "polis", "perlahan_2", "perlahan", "saudara", "siapa", "bagaimana", "bahasa_isyarat", "baik_2", "bapa_saudara", "berapa", "hujan", "kakak", "keluarga", "mana", "payung", "perempuan", "lelaki", "curi", "berlari", "sampai", "mari", "pergi_2", "emak", "ada", "mohon", "kereta", "suka", "ayah", "main", "buang", "lemak", "minum", "bomba", "pukul", "buat", "bawa", "tanya", "anak_perempuan", "sejuk", "kacau", "ambil", "pensil", "emak_saudara", "teh_tarik", "berjalan", "sudah", "lupa", "jahat", "tolong", "bola", "bas", "masa", "baca", "kesakitan", "pandai_2", "jumpa", "dapat", "arah", "teksi", "dari", "jam", "sekolah", "jangan", "nasi", "makan", "bapa", "pergi", "pinjam", "pen"]
+import utils
 
-# ==========================================
-# 1. SETUP MEDIAPIPE HOLISTIC (Matches your Preprocessing)
-# ==========================================
-mp_holistic = mp.solutions.holistic
-mp_drawing = mp.solutions.drawing_utils
+labels = sorted(os.listdir(utils.TRAIN_DATASET_PATH)) if os.path.exists(utils.TRAIN_DATASET_PATH) else []
 
-# Use the exact extraction logic from your training script
-def extract_keypoints(results):
-    pose = np.array([[res.x, res.y, res.z, res.visibility] for res in results.pose_landmarks.landmark]).flatten() if results.pose_landmarks else np.zeros(33*4)
-    lh = np.array([[res.x, res.y, res.z] for res in results.left_hand_landmarks.landmark]).flatten() if results.left_hand_landmarks else np.zeros(21*3)
-    rh = np.array([[res.x, res.y, res.z] for res in results.right_hand_landmarks.landmark]).flatten() if results.right_hand_landmarks else np.zeros(21*3)
-
-    # Concatenate exactly as you did in training
-    return np.concatenate([pose, lh, rh])
-
-
-# ==========================================
-# 2. DEFINE MODEL (Updated Input Size)
-# ==========================================
-class CustomLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes):
-        super(CustomLSTM, self).__init__()
-        self.lstm1 = nn.LSTM(input_size, hidden_size, batch_first=True)
-        self.lstm2 = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.lstm3 = nn.LSTM(hidden_size, hidden_size, batch_first=True)
-        self.fc1 = nn.Linear(hidden_size, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 64)
-        self.fc4 = nn.Linear(64, 32)
-        self.fc5 = nn.Linear(32, 32)
-        self.output_layer = nn.Linear(32, num_classes)
-
-    def forward(self, x):
-        x, _ = self.lstm1(x)
-        x, _ = self.lstm2(x)
-        x, _ = self.lstm3(x)
-        x = torch.relu(self.fc1(x[:, -1, :]))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
-        x = torch.relu(self.fc4(x))
-        x = torch.relu(self.fc5(x))
-        x = self.output_layer(x)
-        return x
 
 # Config
 INPUT_SIZE = 258
 HIDDEN_SIZE = 64
-NUM_CLASSES = len(LABELS)
+NUM_CLASSES = len(labels)
 SEQUENCE_LENGTH = 30
 
-model = CustomLSTM(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES)
+model = utils.CustomLSTM(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES)
 model.load_state_dict(torch.load("model/trained_model.pt", weights_only=True)) # Load your weights here
 model.eval()
 
 # MediaPipe
 # Initialize Holistic Model
-holistic = mp_holistic.Holistic(
+holistic = mp.solutions.holistic.Holistic(
     min_detection_confidence=0.5, 
     min_tracking_confidence=0.5
 )
 
-# ==========================================
-# 3. REAL-TIME PROCESSING FUNCTION
-# ==========================================
 def predict_stream(image, history_buffer):
     """
     image: The current video frame from Gradio
@@ -94,9 +49,9 @@ def predict_stream(image, history_buffer):
     image.flags.writeable = True
 
     # 3. Draw Landmarks (Visual Feedback)
-    mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-    mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-    mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+    mp.solutions.drawing_utils.draw_landmarks(image, results.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS)
+    mp.solutions.drawing_utils.draw_landmarks(image, results.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS)
+    mp.solutions.drawing_utils.draw_landmarks(image, results.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS)
     
     prediction_text = "Waiting for hands..."
 
@@ -107,7 +62,7 @@ def predict_stream(image, history_buffer):
     if results.left_hand_landmarks or results.right_hand_landmarks:
         
         # 5. Extract Keypoints (Your Custom Function)
-        keypoints = extract_keypoints(results)
+        keypoints = utils.extract_keypoints(results)
         
         # 6. Add to History Buffer
         history_buffer.append(keypoints)
@@ -127,7 +82,7 @@ def predict_stream(image, history_buffer):
                 
                 # Safe Label Access
                 if idx < NUM_CLASSES:
-                    prediction_text = LABELS[idx]
+                    prediction_text = labels[idx]
                 else:
                     prediction_text = f"Class {idx}"
 
@@ -140,9 +95,6 @@ def predict_stream(image, history_buffer):
     return image, history_buffer
 
 
-# ==========================================
-# 4. GRADIO INTERFACE
-# ==========================================
 with gr.Blocks() as demo:
     gr.Markdown("## Holistic Sign Language Recognition")
     gr.Markdown(f"Input Shape: {SEQUENCE_LENGTH} frames x {INPUT_SIZE} keypoints")
