@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix
 
+import utils
+
 os.environ["KERAS_BACKEND"] = "torch"
 from keras.utils import to_categorical
 
@@ -13,63 +15,7 @@ train_dataset_path = r'./data/train_dataset'
 gestures = sorted(os.listdir(train_dataset_path)) if os.path.exists(train_dataset_path) else []
 model_folder_path = r"./model"
 
-dropout = 0.2
 decimal_delta = 1e-6
-
-# Define your custom LSTM model and move to the GPU
-class ExtractLastTimeStep(nn.Module):
-    def forward(self, x):
-        # LSTM returns (output, (h_n, c_n))
-        output, _ = x 
-        # Extract the last time step: Shape (batch, seq, hidden) -> (batch, hidden)
-        return output[:, -1, :]
-
-
-class CustomLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes):
-        super(CustomLSTM, self).__init__()
-        self.model = nn.Sequential(
-            nn.LSTM(input_size, hidden_size, num_layers=3, batch_first=True, dropout=dropout, dtype=torch.float64).double(),
-
-            # Custom layer to handle the output tuple and slice the last step
-            ExtractLastTimeStep(),
-
-            # Layer 1
-            nn.Linear(hidden_size, 64, dtype=torch.float64),
-            nn.BatchNorm1d(64, dtype=torch.float64),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-
-            # Layer 2
-            nn.Linear(64, 128, dtype=torch.float64),
-            nn.BatchNorm1d(128, dtype=torch.float64),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-
-            # Layer 3
-            nn.Linear(128, 64, dtype=torch.float64),
-            nn.BatchNorm1d(64, dtype=torch.float64),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-
-            # Layer 4
-            nn.Linear(64, 32, dtype=torch.float64),
-            nn.BatchNorm1d(32, dtype=torch.float64),
-            nn.ReLU(),
-            nn.Dropout(dropout-0.1),
-
-            # Layer 5
-            nn.Linear(32, 32, dtype=torch.float64),
-            # Batch norm here is optional, often skipped right before output
-            nn.ReLU(),
-
-            # Output Layer (No BN/Dropout/ReLU on the final logits)
-            nn.Linear(32, num_classes, dtype=torch.float64),
-        )
-
-    def forward(self, x):
-        return self.model(x)
-
 
 def is_better_model(accuracy, best_evaluation_accuracy, loss_item, best_evaluation_loss):
     accuracy_difference = accuracy - best_evaluation_accuracy
@@ -127,7 +73,7 @@ def main():
     input_size = 258
     hidden_size = 64
     num_classes = len(gestures)
-    model = CustomLSTM(input_size, hidden_size, num_classes).to(device)
+    model = utils.CustomLSTM(input_size, hidden_size, num_classes).to(device)
 
     # Define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
