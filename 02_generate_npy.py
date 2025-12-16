@@ -101,6 +101,5 @@ def main():
     load_and_pad_data(gestures, utils.TRAIN_DATASET_PATH, label_map, utils.MODEL_FOLDER_PATH)
 
 
-# --- usage ---
 if __name__ == '__main__':
     main()

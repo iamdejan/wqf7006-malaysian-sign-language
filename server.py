@@ -74,7 +74,7 @@ def predict_stream(image, history_buffer):
         # 7. Predict
         if len(history_buffer) == SEQUENCE_LENGTH:
             # Prepare tensor: (1, 30, 258)
-            input_seq = torch.tensor([history_buffer], dtype=torch.float32)
+            input_seq = torch.tensor([history_buffer], dtype=torch.float64)
 
             with torch.no_grad():
                 res = model(input_seq)
@@ -112,7 +112,7 @@ with gr.Blocks() as demo:
         fn=predict_stream, 
         inputs=[input_cam, state], 
         outputs=[output_cam, state],
-        stream_every=0.1
+        stream_every=0.05
     )
 
 
