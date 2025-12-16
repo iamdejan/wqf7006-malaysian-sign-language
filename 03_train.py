@@ -1,33 +1,34 @@
 import os
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
+from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, confusion_matrix
 
 import utils
 
 os.environ["KERAS_BACKEND"] = "torch"
 from keras.utils import to_categorical
 
-train_dataset_path = r'./data/train_dataset'
+train_dataset_path = r"./data/train_dataset"
 gestures = sorted(os.listdir(train_dataset_path)) if os.path.exists(train_dataset_path) else []
 model_folder_path = r"./model"
 
 decimal_delta = 1e-6
 
+
 def is_better_model(accuracy, best_evaluation_accuracy, loss_item, best_evaluation_loss):
     accuracy_difference = accuracy - best_evaluation_accuracy
     return accuracy_difference > decimal_delta or (
-            0.0 < accuracy_difference <= decimal_delta and
-            loss_item < best_evaluation_loss
-        )
+        0.0 < accuracy_difference <= decimal_delta and loss_item < best_evaluation_loss
+    )
 
 
 def main():
-    X = np.load(f'{model_folder_path}/X_all.npy')
-    y = np.load(f'{model_folder_path}/y_all.npy')
+    X = np.load(f"{model_folder_path}/X_all.npy")
+    y = np.load(f"{model_folder_path}/y_all.npy")
 
     # Convert the labels into a one-hot encoded format for classification
     # For example, if there are 3 classes, label 1 becomes [0, 1, 0], label 2 becomes [0, 0, 1], etc.
@@ -39,25 +40,25 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
     # save train and test files
-    np.save(f'{model_folder_path}/X_train.npy', X_train)
-    np.save(f'{model_folder_path}/X_test.npy', X_test)
-    np.save(f'{model_folder_path}/y_train.npy', y_train)
-    np.save(f'{model_folder_path}/y_test.npy', y_test)
+    np.save(f"{model_folder_path}/X_train.npy", X_train)
+    np.save(f"{model_folder_path}/X_test.npy", X_test)
+    np.save(f"{model_folder_path}/y_train.npy", y_train)
+    np.save(f"{model_folder_path}/y_test.npy", y_test)
 
     # split train to train and val
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2)
-    np.save(f'{model_folder_path}/X_train.npy', X_train)
-    np.save(f'{model_folder_path}/X_val.npy', X_val)
-    np.save(f'{model_folder_path}/y_train.npy', y_train)
-    np.save(f'{model_folder_path}/y_val.npy', y_val)
+    np.save(f"{model_folder_path}/X_train.npy", X_train)
+    np.save(f"{model_folder_path}/X_val.npy", X_val)
+    np.save(f"{model_folder_path}/y_train.npy", y_train)
+    np.save(f"{model_folder_path}/y_val.npy", y_val)
 
     # load checkpoint
-    X_train = np.load(f'{model_folder_path}/X_train.npy')
-    X_val = np.load(f'{model_folder_path}/X_val.npy')
-    X_test = np.load(f'{model_folder_path}/X_test.npy')
-    y_train = np.load(f'{model_folder_path}/y_train.npy')
-    y_val = np.load(f'{model_folder_path}/y_val.npy')
-    y_test = np.load(f'{model_folder_path}/y_test.npy')
+    X_train = np.load(f"{model_folder_path}/X_train.npy")
+    X_val = np.load(f"{model_folder_path}/X_val.npy")
+    X_test = np.load(f"{model_folder_path}/X_test.npy")
+    y_train = np.load(f"{model_folder_path}/y_train.npy")
+    y_val = np.load(f"{model_folder_path}/y_val.npy")
+    y_test = np.load(f"{model_folder_path}/y_test.npy")
 
     # Check if a GPU is available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -83,17 +84,17 @@ def main():
     num_epochs = 500
     loss_history = []
     best_evaluation_accuracy = 0.0
-    best_evaluation_loss = 1e9+7
+    best_evaluation_loss = 1e9 + 7
 
-    for epoch in range(1, num_epochs+1):
+    for epoch in range(1, num_epochs + 1):
         model.train()
-        optimizer.zero_grad() # Reset gradients
-        y_pred = model(X_train) # Forward pass
-        loss = criterion(y_pred, y_train) # Compute loss
-        loss.backward() # Backward pass
-        optimizer.step() # Update weights
+        optimizer.zero_grad()  # Reset gradients
+        y_pred = model(X_train)  # Forward pass
+        loss = criterion(y_pred, y_train)  # Compute loss
+        loss.backward()  # Backward pass
+        optimizer.step()  # Update weights
 
-        epoch_loss = loss.item() # Accumulate loss
+        epoch_loss = loss.item()  # Accumulate loss
 
         # save loss history
         loss_history.append([epoch, epoch_loss])
@@ -108,9 +109,11 @@ def main():
             accuracy = (y_hat.argmax(dim=1) == y_val).float().mean()
             if is_better_model(accuracy, best_evaluation_accuracy, loss_item, best_evaluation_loss):
                 # save best model so far
-                file_path = f'{model_folder_path}/trained_model.pt'
+                file_path = f"{model_folder_path}/trained_model.pt"
                 torch.save(model.state_dict(), file_path)
-                print(f"Epoch [{epoch}/{num_epochs}], best model so far saved with accuracy of {accuracy} and loss of {loss_item} (measured with 'val' set)")
+                print(
+                    f"Epoch [{epoch}/{num_epochs}], best model so far saved with accuracy of {accuracy} and loss of {loss_item} (measured with 'val' set)"
+                )
 
                 # update best values
                 best_evaluation_accuracy = accuracy
@@ -124,14 +127,14 @@ def main():
 
         # calculate performance metrics: accuracy
         accuracy = (y_hat.argmax(dim=1) == y_test).float().mean()
-        print(f'Test Loss: {test_loss.item():.4f}, Test Accuracy: {accuracy.item():.4f}')
+        print(f"Test Loss: {test_loss.item():.4f}, Test Accuracy: {accuracy.item():.4f}")
 
         # convert y_test to numpy for performance metrics in scikit-learn
         y_test = y_test.detach().cpu().numpy()
 
         # save y_hat to disk
         y_hat = y_hat.argmax(dim=1).detach().cpu().numpy()
-        np.save(f'{model_folder_path}/y_hat.npy', y_hat)
+        np.save(f"{model_folder_path}/y_hat.npy", y_hat)
 
         # calculate performance metrics: f1 score
         f1_scr = f1_score(y_test, y_hat, average="macro")

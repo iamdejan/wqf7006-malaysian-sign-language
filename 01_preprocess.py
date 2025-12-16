@@ -1,25 +1,27 @@
 import os
-import cv2
-import numpy as np
-import mediapipe as mp
 from concurrent.futures import ProcessPoolExecutor
+
+import cv2
+import mediapipe as mp
+import numpy as np
 
 import utils
 
 # silent mediapipe output
-os.environ['GLOG_minloglevel'] = '2'  # '2' means suppress INFO and WARNING
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['GOOGLE_LOG_MIN_SEVERITY'] = '2' # This can also be used
+os.environ["GLOG_minloglevel"] = "2"  # '2' means suppress INFO and WARNING
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["GOOGLE_LOG_MIN_SEVERITY"] = "2"  # This can also be used
 
 # --- Setup Paths ---
-train_dataset_path = r'./data/train_dataset'
-video_directory = r'./data/video_dataset'  # Assuming this is your source path based on context
+train_dataset_path = r"./data/train_dataset"
+video_directory = r"./data/video_dataset"
 trained_gestures = sorted(os.listdir(train_dataset_path)) if os.path.exists(train_dataset_path) else []
 
-gestures_files = sorted(os.listdir(video_directory)) # Ensure this variable exists from your previous context
+gestures_files = sorted(os.listdir(video_directory))
 remaining_list = sorted([item for item in gestures_files if item not in trained_gestures])
 
 print(f"Gestures to process: {len(remaining_list)}")
+
 
 # --- Worker Function for Parallel Processing ---
 def process_single_video(task_data):
@@ -40,11 +42,7 @@ def process_single_video(task_data):
     frame_count = 0
 
     # Initialize MediaPipe per video (needed for parallel safety)
-    with mp.solutions.holistic.Holistic(
-        min_detection_confidence=0.5, 
-        min_tracking_confidence=0.5
-    ) as holistic:
-
+    with mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         while cap.isOpened():
             ret, frame = cap.read()
 
@@ -89,7 +87,7 @@ def main():
             # Prepare paths ahead of time
             source_path = os.path.join(video_directory, ges, vid)
             # Note: Adding 'landmarks' prefix to folder name as per your original code logic
-            target_path = os.path.join(train_dataset_path, ges, 'landmarks' + vid)
+            target_path = os.path.join(train_dataset_path, ges, "landmarks" + vid)
 
             # Pack data into a tuple
             all_tasks.append((ges, vid, source_path, target_path))
@@ -110,7 +108,7 @@ def main():
         i = 0
         for item in results:
             if i % 10 == 0:
-                print(f"Processed {i}/{len(all_tasks)} videos...", end='\r')
+                print(f"Processed {i}/{len(all_tasks)} videos...", end="\r")
             print(item)
             i += 1
 
@@ -118,5 +116,5 @@ def main():
 
 
 # --- Main Execution ---
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

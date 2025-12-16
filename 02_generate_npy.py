@@ -1,7 +1,8 @@
 import os
-import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
+
+import numpy as np
 
 import utils
 
@@ -12,7 +13,7 @@ gestures = sorted(os.listdir(utils.TRAIN_DATASET_PATH)) if os.path.exists(utils.
 def process_single_gesture(gs, train_dataset_path, label_map):
     gesture_videos = []
     gesture_labels = []
-    
+
     # Path to the specific gesture folder
     gs_path = os.path.join(train_dataset_path, gs)
     if not os.path.exists(gs_path):
@@ -23,11 +24,11 @@ def process_single_gesture(gs, train_dataset_path, label_map):
 
     for video_folder in video_folders:
         load_path = os.path.join(gs_path, video_folder)
-        
+
         # Get all .npy files and sort them numerically
-        npy_files = [f for f in os.listdir(load_path) if f.endswith('.npy')]
+        npy_files = [f for f in os.listdir(load_path) if f.endswith(".npy")]
         # Optimization: Filter digits once to avoid repeated calls
-        npy_files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
+        npy_files.sort(key=lambda f: int("".join(filter(str.isdigit, f))))
 
         if not npy_files:
             continue
@@ -35,11 +36,12 @@ def process_single_gesture(gs, train_dataset_path, label_map):
         # Load all frames for this video
         # Optimization: List comprehension is slightly faster than append loop
         video_frames = [np.load(os.path.join(load_path, npy)) for npy in npy_files]
-        
+
         gesture_videos.append(video_frames)
         gesture_labels.append(label_map[gs])
 
     return gesture_videos, gesture_labels
+
 
 def load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path):
     all_sequences = []
@@ -53,9 +55,11 @@ def load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         # Create a partial function to pass constant arguments
-        worker = partial(process_single_gesture, 
-                         train_dataset_path=train_dataset_path, 
-                         label_map=label_map)
+        worker = partial(
+            process_single_gesture,
+            train_dataset_path=train_dataset_path,
+            label_map=label_map,
+        )
 
         # Map the worker to the gestures
         results = executor.map(worker, gestures)
@@ -74,14 +78,14 @@ def load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path
     # 2. VECTORIZED PADDING (Much faster than list comprehension)
     # Find global dimensions
     max_seq_len = max(len(seq) for seq in all_sequences)
-    feature_dim = all_sequences[0][0].shape[0] # Assuming all frames have same feature dim
+    feature_dim = all_sequences[0][0].shape[0]  # Assuming all frames have same feature dim
     num_samples = len(all_sequences)
 
     print(f"Padding data. Shape: ({num_samples}, {max_seq_len}, {feature_dim})")
 
     # Pre-allocate one giant array of zeros (Masking/Padding built-in)
     X = np.zeros((num_samples, max_seq_len, feature_dim), dtype=np.float32)
-    
+
     # Fill the array
     for i, seq in enumerate(all_sequences):
         length = len(seq)
@@ -91,8 +95,8 @@ def load_and_pad_data(gestures, train_dataset_path, label_map, model_folder_path
 
     # 3. SAVE ONCE (Or modify to save per batch if memory is tight)
     print("Saving to disk...")
-    np.save(f'{model_folder_path}/X_all.npy', X)
-    np.save(f'{model_folder_path}/y_all.npy', y)
+    np.save(f"{model_folder_path}/X_all.npy", X)
+    np.save(f"{model_folder_path}/y_all.npy", y)
     print("Done!")
 
 
@@ -101,5 +105,5 @@ def main():
     load_and_pad_data(gestures, utils.TRAIN_DATASET_PATH, label_map, utils.MODEL_FOLDER_PATH)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
