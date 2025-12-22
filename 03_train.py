@@ -64,9 +64,9 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Convert data to PyTorch tensors and move to the GPU
-    X_train = torch.tensor(X_train, dtype=torch.float64).to(device)
-    X_test = torch.tensor(X_test, dtype=torch.float64).to(device)
-    X_val = torch.tensor(X_val, dtype=torch.float64).to(device)
+    X_train = torch.tensor(X_train).to(device)
+    X_test = torch.tensor(X_test).to(device)
+    X_val = torch.tensor(X_val).to(device)
     y_train = torch.tensor(y_train.argmax(axis=1), dtype=torch.long).to(device)  # Convert to class indices
     y_test = torch.tensor(y_test.argmax(axis=1), dtype=torch.long).to(device)  # Convert to class indices
     y_val = torch.tensor(y_val.argmax(axis=1), dtype=torch.long).to(device)  # Convert to class indices

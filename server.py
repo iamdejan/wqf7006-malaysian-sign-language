@@ -12,7 +12,7 @@ labels = sorted(os.listdir(utils.TRAIN_DATASET_PATH)) if os.path.exists(utils.TR
 
 # Config
 INPUT_SIZE = 258
-HIDDEN_SIZE = 64
+HIDDEN_SIZE = 128
 NUM_CLASSES = len(labels)
 SEQUENCE_LENGTH = 30
 
@@ -23,6 +23,16 @@ model.eval()
 # MediaPipe
 # Initialize Holistic Model
 holistic = mp.solutions.holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+
+
+def print_result_with_label_names(t: torch.tensor):
+    t = t.detach().clone().numpy()  # shape: (1, 90)
+    print(t.shape)
+    result = {}
+    for i, value in enumerate(t[0]):
+        key = labels[i]
+        result[key] = value
+    return result
 
 
 def predict_stream(image, history_buffer):
@@ -76,11 +86,12 @@ def predict_stream(image, history_buffer):
         # 7. Predict
         if len(history_buffer) == SEQUENCE_LENGTH:
             # Prepare tensor: (1, 30, 258)
-            input_seq = torch.tensor([history_buffer], dtype=torch.float64)
+            input_seq = torch.tensor([history_buffer], dtype=torch.float32)
 
             with torch.no_grad():
                 res = model(input_seq)
                 idx = torch.argmax(res).item()
+                print(f"result: {print_result_with_label_names(res)}")
 
                 # Safe Label Access
                 if idx < NUM_CLASSES:
@@ -122,7 +133,7 @@ with gr.Blocks() as demo:
         fn=predict_stream,
         inputs=[input_cam, state],
         outputs=[output_cam, state],
-        stream_every=0.05,
+        stream_every=0.1,
     )
 
 
