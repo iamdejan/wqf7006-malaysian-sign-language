@@ -58,13 +58,20 @@ def predict_stream(image, history_buffer):
     image.flags.writeable = True
 
     # 3. Draw Landmarks (Visual Feedback)
-    mp.solutions.drawing_utils.draw_landmarks(image, results.pose_landmarks, mp.solutions.holistic.POSE_CONNECTIONS)
-    mp.solutions.drawing_utils.draw_landmarks(
-        image, results.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS
-    )
-    mp.solutions.drawing_utils.draw_landmarks(
-        image, results.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS
-    )
+    if results.pose_landmarks:
+        mp.solutions.drawing_utils.draw_landmarks(
+            image,
+            results.pose_landmarks,
+            mp.solutions.holistic.POSE_CONNECTIONS,
+        )
+    if results.left_hand_landmarks:
+        mp.solutions.drawing_utils.draw_landmarks(
+            image, results.left_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS
+        )
+    if results.right_hand_landmarks:
+        mp.solutions.drawing_utils.draw_landmarks(
+            image, results.right_hand_landmarks, mp.solutions.holistic.HAND_CONNECTIONS
+        )
 
     prediction_text = "Waiting for hands..."
 
