@@ -26,9 +26,8 @@ LAYERS = 2
 DROPOUT = 0.35
 
 # ---- Display options ----
-WINDOW_NAME = "Sign Language"
 DRAW_LANDMARKS = True  # True: draw MediaPipe pose+hands
-SHOW_TOPK = 1  # 1: only top-1, >1: show top-k
+SHOW_TOPK = 3  # 1: only top-1, >1: show top-k
 PRED_EVERY_N_FRAMES = 2  # predict every N frames (speedup)
 TEXT_SCALE = 0.7
 TEXT_THICKNESS = 2
@@ -172,108 +171,124 @@ def predict(video):
     t_prev = time.time()
     fps_smooth = 0.0
 
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        while True:
-            ok, frame = cap.read()
-            if not ok or frame is None:
-                break
-            frame_id += 1
+    # output
+    # Define output file name and codec (h264 for Gradio compatibility)
+    output_path = "output.mp4"
+    fourcc = cv2.VideoWriter_fourcc(*"h264")
 
+    # Get frame properties from your source (e.g., cap = cv2.VideoCapture(...))
+    # Replace with actual dimensions and FPS if not using cv2.VideoCapture
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+    # Create the VideoWriter object
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+    while True:
+        ok, frame = cap.read()
+        if not ok or frame is None:
+            break
+        frame_id += 1
+
+        with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
             results = mediapipe_detection(frame, holistic)
 
-            if results.pose_landmarks:
-                mp_drawing.draw_landmarks(
+        if results.pose_landmarks:
+            mp_drawing.draw_landmarks(
+                frame,
+                results.pose_landmarks,
+                mp_holistic.POSE_CONNECTIONS,
+                landmark_drawing_spec=mp_styles.get_default_pose_landmarks_style(),
+            )
+        if results.left_hand_landmarks:
+            mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+        if results.right_hand_landmarks:
+            mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+
+        kp = extract_keypoints(results)
+        sequence.append(kp)
+
+        # predict (only when buffer full + every N frames)
+        if len(sequence) == SEQ_LEN and (frame_id % PRED_EVERY_N_FRAMES == 0):
+            x = np.expand_dims(np.array(sequence, dtype=np.float32), axis=0)  # (1,30,258)
+            x = normalize_seq_np(x)
+            xb = torch.tensor(x, dtype=torch.float32, device=device)
+
+            with torch.no_grad():
+                logits = model(xb)[0]
+                probs = torch.softmax(logits, dim=0)
+
+            last_topk = format_topk(probs, SHOW_TOPK)
+            last_pred, last_prob = last_topk[0]
+
+            # ✅ ONLY change: print final TOP-1 pred to console
+            print(f"[frame={frame_id}] Pred: {last_pred} | prob={last_prob:.4f}")
+
+        # FPS update (even when paused, keep stable)
+        t_now = time.time()
+        dt = max(1e-6, t_now - t_prev)
+        inst_fps = 1.0 / dt
+        fps_smooth = 0.9 * fps_smooth + 0.1 * inst_fps if fps_smooth > 0 else inst_fps
+        t_prev = t_now
+
+        # overlay text
+        x = 10
+        y = 60
+        y += 28
+        put_text_with_bg(
+            frame,
+            f"Pred: {last_pred}  |  prob={last_prob:.3f}",
+            (x, y),
+            scale=TEXT_SCALE,
+            thickness=TEXT_THICKNESS,
+            text_color=(255, 255, 255),
+            bg_color=(80, 20, 20),
+            alpha=0.55,
+        )
+        y += 28
+
+        if SHOW_TOPK > 1 and len(last_topk) > 1:
+            for i, (name, p) in enumerate(last_topk[1:], start=2):
+                put_text_with_bg(
                     frame,
-                    results.pose_landmarks,
-                    mp_holistic.POSE_CONNECTIONS,
-                    landmark_drawing_spec=mp_styles.get_default_pose_landmarks_style(),
+                    f"Top-{i}: {name} ({p:.3f})",
+                    (x, y),
+                    scale=0.6,
+                    thickness=2,
+                    text_color=(255, 255, 255),
+                    bg_color=(0, 0, 0),
+                    alpha=0.45,
                 )
-            if results.left_hand_landmarks:
-                mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            if results.right_hand_landmarks:
-                mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+                y += 28
 
-            kp = extract_keypoints(results)
-            sequence.append(kp)
+        # status line
+        buf = len(sequence)
+        if total_frames > 0:
+            status = f"frame: {frame_id}/{total_frames} | buffer: {buf}/{SEQ_LEN} | FPS: {fps_smooth:.1f}"
+        else:
+            status = f"frame: {frame_id} | buffer: {buf}/{SEQ_LEN} | FPS: {fps_smooth:.1f}"
+        put_text_with_bg(
+            frame,
+            status,
+            (x, frame.shape[0] - 12),
+            scale=0.6,
+            thickness=2,
+            text_color=(255, 255, 255),
+            bg_color=(0, 0, 0),
+            alpha=0.45,
+        )
 
-            # predict (only when buffer full + every N frames)
-            if len(sequence) == SEQ_LEN and (frame_id % PRED_EVERY_N_FRAMES == 0):
-                x = np.expand_dims(np.array(sequence, dtype=np.float32), axis=0)  # (1,30,258)
-                x = normalize_seq_np(x)
-                xb = torch.tensor(x, dtype=torch.float32, device=device)
+        out.write(frame)
 
-                with torch.no_grad():
-                    logits = model(xb)[0]
-                    probs = torch.softmax(logits, dim=0)
-
-                last_topk = format_topk(probs, SHOW_TOPK)
-                last_pred, last_prob = last_topk[0]
-
-                # ✅ ONLY change: print final TOP-1 pred to console
-                print(f"[frame={frame_id}] Pred: {last_pred} | prob={last_prob:.4f}")
-
-            # FPS update (even when paused, keep stable)
-            t_now = time.time()
-            dt = max(1e-6, t_now - t_prev)
-            inst_fps = 1.0 / dt
-            fps_smooth = 0.9 * fps_smooth + 0.1 * inst_fps if fps_smooth > 0 else inst_fps
-            t_prev = t_now
-
-            # overlay text
-            y = 30
-            y += 28
-            put_text_with_bg(
-                frame,
-                f"Pred: {last_pred}  |  prob={last_prob:.3f}",
-                (10, y),
-                scale=TEXT_SCALE,
-                thickness=TEXT_THICKNESS,
-                text_color=(255, 255, 255),
-                bg_color=(80, 20, 20),
-                alpha=0.55,
-            )
-            y += 28
-
-            if SHOW_TOPK > 1 and len(last_topk) > 1:
-                for i, (name, p) in enumerate(last_topk[1:], start=2):
-                    put_text_with_bg(
-                        frame,
-                        f"Top-{i}: {name} ({p:.3f})",
-                        (10, y),
-                        scale=0.6,
-                        thickness=2,
-                        text_color=(255, 255, 255),
-                        bg_color=(0, 0, 0),
-                        alpha=0.45,
-                    )
-                    y += 22
-
-            # status line
-            buf = len(sequence)
-            if total_frames > 0:
-                status = f"frame: {frame_id}/{total_frames} | buffer: {buf}/{SEQ_LEN} | FPS: {fps_smooth:.1f}"
-            else:
-                status = f"frame: {frame_id} | buffer: {buf}/{SEQ_LEN} | FPS: {fps_smooth:.1f}"
-            put_text_with_bg(
-                frame,
-                status,
-                (10, frame.shape[0] - 12),
-                scale=0.6,
-                thickness=2,
-                text_color=(255, 255, 255),
-                bg_color=(0, 0, 0),
-                alpha=0.45,
-            )
-
-            cv2.imshow(WINDOW_NAME, frame)
-            pass
-    return video
+    cap.release()
+    out.release()
+    return output_path  # Return the path to the saved video
 
 
 with gr.Blocks() as demo:
     gr.Markdown("# Malaysia Sign Language")
-
-    gr.Interface(predict, gr.Video(), "playable_video", api_name="predict")
+    gr.Interface(predict, gr.Video(label=""), "playable_video", api_name="predict")
 
 
 if __name__ == "__main__":
