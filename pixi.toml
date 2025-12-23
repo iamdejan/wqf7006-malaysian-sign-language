@@ -6,9 +6,6 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
-preprocess = "python3 01_preprocess.py"
-generate_npy = "python3 02_generate_npy.py"
-train = "python3 03_train.py"
 server = "python3 server.py"
 
 [system-requirements]
