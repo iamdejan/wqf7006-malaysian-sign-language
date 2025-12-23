@@ -15,6 +15,9 @@ model/*
 # NumPy NPY
 npy/
 
+# Output video file
+output.mp4
+
 # Gradio log
 .gradio
 
