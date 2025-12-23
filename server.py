@@ -162,7 +162,6 @@ def predict(video):
 
     sequence = deque(maxlen=SEQ_LEN)
     frame_id = 0
-    paused = False
 
     # prediction cache
     last_pred = "..."
@@ -175,44 +174,43 @@ def predict(video):
 
     with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
         while True:
-            if not paused:
-                ok, frame = cap.read()
-                if not ok or frame is None:
-                    break
-                frame_id += 1
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                break
+            frame_id += 1
 
-                results = mediapipe_detection(frame, holistic)
+            results = mediapipe_detection(frame, holistic)
 
-                if results.pose_landmarks:
-                    mp_drawing.draw_landmarks(
-                        frame,
-                        results.pose_landmarks,
-                        mp_holistic.POSE_CONNECTIONS,
-                        landmark_drawing_spec=mp_styles.get_default_pose_landmarks_style(),
-                    )
-                if results.left_hand_landmarks:
-                    mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-                if results.right_hand_landmarks:
-                    mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            if results.pose_landmarks:
+                mp_drawing.draw_landmarks(
+                    frame,
+                    results.pose_landmarks,
+                    mp_holistic.POSE_CONNECTIONS,
+                    landmark_drawing_spec=mp_styles.get_default_pose_landmarks_style(),
+                )
+            if results.left_hand_landmarks:
+                mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            if results.right_hand_landmarks:
+                mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
 
-                kp = extract_keypoints(results)
-                sequence.append(kp)
+            kp = extract_keypoints(results)
+            sequence.append(kp)
 
-                # predict (only when buffer full + every N frames)
-                if len(sequence) == SEQ_LEN and (frame_id % PRED_EVERY_N_FRAMES == 0):
-                    x = np.expand_dims(np.array(sequence, dtype=np.float32), axis=0)  # (1,30,258)
-                    x = normalize_seq_np(x)
-                    xb = torch.tensor(x, dtype=torch.float32, device=device)
+            # predict (only when buffer full + every N frames)
+            if len(sequence) == SEQ_LEN and (frame_id % PRED_EVERY_N_FRAMES == 0):
+                x = np.expand_dims(np.array(sequence, dtype=np.float32), axis=0)  # (1,30,258)
+                x = normalize_seq_np(x)
+                xb = torch.tensor(x, dtype=torch.float32, device=device)
 
-                    with torch.no_grad():
-                        logits = model(xb)[0]
-                        probs = torch.softmax(logits, dim=0)
+                with torch.no_grad():
+                    logits = model(xb)[0]
+                    probs = torch.softmax(logits, dim=0)
 
-                    last_topk = format_topk(probs, SHOW_TOPK)
-                    last_pred, last_prob = last_topk[0]
+                last_topk = format_topk(probs, SHOW_TOPK)
+                last_pred, last_prob = last_topk[0]
 
-                    # ✅ ONLY change: print final TOP-1 pred to console
-                    print(f"[frame={frame_id}] Pred: {last_pred} | prob={last_prob:.4f}")
+                # ✅ ONLY change: print final TOP-1 pred to console
+                print(f"[frame={frame_id}] Pred: {last_pred} | prob={last_prob:.4f}")
 
             # FPS update (even when paused, keep stable)
             t_now = time.time()
@@ -267,19 +265,8 @@ def predict(video):
                 alpha=0.45,
             )
 
-            if paused:
-                put_text_with_bg(
-                    frame,
-                    "PAUSED (space to resume)",
-                    (10, 90),
-                    scale=0.8,
-                    thickness=2,
-                    text_color=(0, 0, 0),
-                    bg_color=(255, 255, 255),
-                    alpha=0.65,
-                )
-
             cv2.imshow(WINDOW_NAME, frame)
+            pass
     return video
 
 
