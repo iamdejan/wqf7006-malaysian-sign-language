@@ -50,14 +50,6 @@ print("Loaded gestures:", num_classes)
 print("First 10 gestures:", gestures[:10])
 
 
-# Try infer GT label from path (.../val/<class>/<file>.mp4)
-def infer_gt_from_path(video_path: str) -> str:
-    p = Path(video_path)
-    if len(p.parents) >= 2:
-        return p.parent.name
-    return "UNKNOWN"
-
-
 def get_device():
     return torch.device("cpu")
 
@@ -67,8 +59,8 @@ print("Using device:", device)
 
 
 model = utils.CustomLSTM(INPUT_SIZE, HIDDEN_SIZE, NUM_CLASSES)
-model.load_state_dict(torch.load("model/trained_model.pt", weights_only=True, map_location=device))  # Load your weights here
 model.eval()
+model.load_state_dict(torch.load("model/trained_model.pt", weights_only=True, map_location=device))  # Load your weights here
 
 
 # =========================
